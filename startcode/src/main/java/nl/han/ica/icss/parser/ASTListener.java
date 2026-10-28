@@ -7,9 +7,7 @@ import nl.han.ica.datastructures.HANStack;
 import nl.han.ica.datastructures.IHANStack;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
-import nl.han.ica.icss.ast.operations.AddOperation;
-import nl.han.ica.icss.ast.operations.MultiplyOperation;
-import nl.han.ica.icss.ast.operations.SubtractOperation;
+import nl.han.ica.icss.ast.operations.*;
 import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
@@ -163,6 +161,70 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void exitAddOrSubtractOperation(ICSSParser.AddOrSubtractOperationContext ctx){
+		closeNode();
+	}
+
+
+	// Own Extenstion
+	@Override
+	public void enterNotOperation(ICSSParser.NotOperationContext ctx){
+	currentContainer.push(new NotOperation());
+	}
+
+	@Override
+	public void exitNotOperation(ICSSParser.NotOperationContext ctx){
+		closeNode();
+	}
+
+	@Override
+	public void enterComparisonOperation(ICSSParser.ComparisonOperationContext ctx){
+		if (ctx.LESS_THAN() != null){
+			currentContainer.push(new LessThanOperation());
+		} else if (ctx.GREATER_THAN() != null){
+			currentContainer.push(new GreaterThanOperation());
+		} else if (ctx.LESS_OR_EQUAL() != null) {
+			currentContainer.push(new LessOrEqualOperation());
+		} else {
+			currentContainer.push(new GreaterOrEqualOperation());
+		}
+	}
+
+	@Override
+	public void	exitComparisonOperation(ICSSParser.ComparisonOperationContext ctx){
+		closeNode();
+	}
+
+	@Override
+	public void enterEqualityOperation(ICSSParser.EqualityOperationContext ctx){
+		if (ctx.EQUALS() != null){
+			currentContainer.push(new EqualOperation());
+		} else{
+			currentContainer.push(new NotEqualOperation());
+		}
+	}
+
+	@Override
+	public void exitEqualityOperation(ICSSParser.EqualityOperationContext ctx){
+		closeNode();
+	}
+
+	@Override
+	public void enterAndOperation(ICSSParser.AndOperationContext ctx){
+		currentContainer.push(new AddOperation());
+	}
+
+	@Override
+	public void exitAndOperation(ICSSParser.AndOperationContext ctx){
+		closeNode();
+	}
+
+	@Override
+	public void enterOrOperation(ICSSParser.OrOperationContext ctx){
+		currentContainer.push(new OrOperation());
+	}
+
+	@Override
+	public void exitOrOperation(ICSSParser.OrOperationContext ctx){
 		closeNode();
 	}
 

@@ -176,6 +176,14 @@ public class Checker {
         return ExpressionType.UNDEFINED;
     }
 
+    private ExpressionType checkLogicalOperation(Operation operation, ExpressionType left, ExpressionType right){
+        if (left != ExpressionType.BOOL || right != ExpressionType.BOOL){
+            operation.setError("Operator " + operation.getNodeLabel().toLowerCase() + " needs an boolean but got " + describe(left) + " and " + describe(right));
+            return ExpressionType.UNDEFINED;
+        }
+        return ExpressionType.BOOL;
+    }
+
     private boolean isNumeric(ExpressionType type){
         return type == ExpressionType.PIXEL
                 || type == ExpressionType.PERCENTAGE

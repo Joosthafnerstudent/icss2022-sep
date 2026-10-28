@@ -44,6 +44,19 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
+// Boolean expression support (own extension):
+PAREN_OPEN: '(';
+PAREN_CLOSE: ')';
+NOT: '!';
+AND: '&&';
+OR: '||';
+EQUALS: '==';
+NOT_EQUALS: '!=';
+LESS_OR_EQUAL: '<=';
+GREATER_OR_EQUAL: '>=';
+LESS_THAN: '<';
+GREATER_THAN: '>';
+
 
 
 
@@ -69,11 +82,19 @@ variableReference: CAPITAL_IDENT;
 ifClause: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE ruleBody CLOSE_BRACE elseClause?;
 elseClause: ELSE OPEN_BRACE ruleBody CLOSE_BRACE;
 
-// Alternatives are listed from highest to lowest precedence; both operators are left associative
-expression: expression MUL expression          #multiplyOperation
-          | expression (PLUS | MIN) expression #addOrSubtractOperation
-          | literal                            #literalExpression
-          | variableReference                  #variableExpression
+// Alternatives are listed from highest to lowest precedence; all binary operators are left associative:
+// !  >  *  >  + -  >  < > <= >=  >  == !=  >  &&  >  ||
+expression: NOT expression                                          #notOperation
+          | expression MUL expression                               #multiplyOperation
+          | expression (PLUS | MIN) expression                      #addOrSubtractOperation
+          | expression (LESS_THAN | GREATER_THAN
+                       | LESS_OR_EQUAL | GREATER_OR_EQUAL) expression #comparisonOperation
+          | expression (EQUALS | NOT_EQUALS) expression             #equalityOperation
+          | expression AND expression                               #andOperation
+          | expression OR expression                                #orOperation
+          | PAREN_OPEN expression PAREN_CLOSE                       #parenthesesExpression
+          | literal                                                 #literalExpression
+          | variableReference                                       #variableExpression
           ;
 
 literal: COLOR       #colorLiteral
