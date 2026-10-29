@@ -210,7 +210,7 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void enterAndOperation(ICSSParser.AndOperationContext ctx){
-		currentContainer.push(new AddOperation());
+		currentContainer.push(new AndOperation());
 	}
 
 	@Override
