@@ -4,9 +4,7 @@ import nl.han.ica.datastructures.HANLinkedList;
 import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
-import nl.han.ica.icss.ast.operations.AddOperation;
-import nl.han.ica.icss.ast.operations.MultiplyOperation;
-import nl.han.ica.icss.ast.operations.SubtractOperation;
+import nl.han.ica.icss.ast.operations.*;
 import nl.han.ica.icss.ast.types.ExpressionType;
 
 import java.util.HashMap;
@@ -125,6 +123,8 @@ public class Checker {
             return ExpressionType.BOOL;
         } else if (expression instanceof VariableReference) {
             return checkVariableReference((VariableReference) expression);
+        } else if (expression instanceof  NotOperation) {
+            return checkNotOperation((NotOperation) expression);
         } else if (expression instanceof Operation) {
             return checkOperation((Operation) expression);
         }
@@ -149,6 +149,18 @@ public class Checker {
             return ExpressionType.UNDEFINED;
         }
 
+        if (operation instanceof AndOperation || operation instanceof OrOperation) {
+            return checkLogicalOperation(operation, left, right);
+        }
+
+        if (operation instanceof EqualOperation || operation instanceof NotEqualOperation) {
+            return checkEqualityOperation(operation, left, right);
+        }
+
+        if (isComperrison(operation)){
+            return checkComperisonOperation(operation, left, right);
+        }
+
         if (!isNumeric(left) || !isNumeric(right)) {
             operation.setError("Cannot use " + describe(isNumeric(left) ? right : left)
                     + " in the operation " + operation.getNodeLabel().toLowerCase());
@@ -166,8 +178,8 @@ public class Checker {
             return ExpressionType.UNDEFINED;
         }
 
-        if (operation instanceof AddOperation || operation instanceof SubtractOperation){
-            if(left != right){
+        if (operation instanceof AddOperation || operation instanceof SubtractOperation) {
+            if (left != right) {
                 operation.setError("Cannot " + operation.getNodeLabel().toLowerCase() + " " + describe(left) + " And " + describe(right));
                 return ExpressionType.UNDEFINED;
             }
@@ -176,15 +188,53 @@ public class Checker {
         return ExpressionType.UNDEFINED;
     }
 
-    private ExpressionType checkLogicalOperation(Operation operation, ExpressionType left, ExpressionType right){
-        if (left != ExpressionType.BOOL || right != ExpressionType.BOOL){
+
+    // && en || : Beide operanden moeten een boolean zijn
+    private ExpressionType checkLogicalOperation(Operation operation, ExpressionType left, ExpressionType right) {
+        if (left != ExpressionType.BOOL || right != ExpressionType.BOOL) {
             operation.setError("Operator " + operation.getNodeLabel().toLowerCase() + " needs an boolean but got " + describe(left) + " and " + describe(right));
             return ExpressionType.UNDEFINED;
         }
         return ExpressionType.BOOL;
     }
 
-    private boolean isNumeric(ExpressionType type){
+    private ExpressionType checkEqualityOperation(Operation operation, ExpressionType left, ExpressionType right) {
+        if (left != right) {
+            operation.setError("Kan niet vergelijken " + describe(left) + "met " + describe(right) + "met gebruik van " + operation.getNodeLabel().toLowerCase());
+            return ExpressionType.UNDEFINED;
+        }
+        return ExpressionType.BOOL;
+    }
+
+
+    private ExpressionType checkComperisonOperation(Operation operation, ExpressionType left, ExpressionType right) {
+        if (!isNumeric(left) || !isNumeric(right) || left != right) {
+            operation.setError("Kan niet vergelijken " + describe(left) + " met " + describe(right) + "gebruik " + operation.getNodeLabel().toLowerCase());
+            return ExpressionType.UNDEFINED;
+        }
+        return ExpressionType.BOOL;
+    }
+
+    private ExpressionType checkNotOperation(NotOperation operation) {
+        ExpressionType operand = checkExpression(operation.operand);
+        if (operand == ExpressionType.UNDEFINED) {
+            return ExpressionType.UNDEFINED;
+        }
+        if (operand != ExpressionType.BOOL) {
+            operation.setError("Operand moet van het type boolean zijn maar kreeg " + describe(operand));
+        }
+
+        return ExpressionType.BOOL;
+    }
+
+
+    private boolean isComperrison(Operation operation) {
+        return operation instanceof LessThanOperation
+                || operation instanceof GreaterThanOperation
+                || operation instanceof LessOrEqualOperation
+                || operation instanceof GreaterOrEqualOperation;
+    }
+    private boolean isNumeric(ExpressionType type) {
         return type == ExpressionType.PIXEL
                 || type == ExpressionType.PERCENTAGE
                 || type == ExpressionType.SCALAR;
