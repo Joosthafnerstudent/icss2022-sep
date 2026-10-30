@@ -35,22 +35,35 @@ public class ASTListener extends ICSSBaseListener {
 
 	// Helper functies
 
+
+	/*
+	 Deze functie sluit de bovenste node die op de stack staat af.
+	*/
 	private void closeNode(){
 		ASTNode finished = currentContainer.pop();
 		currentContainer.peek().addChild(finished);
 	}
 
+	/*
+	Voegt een node zonder kinderen direct toe aan de huidige parent zonder deze op de stack te zetten
+	 */
 	private void addLeaf(ASTNode leaf){
 		currentContainer.peek().addChild(leaf);
 	}
 
 	// Stylesheet
 
+	/*
+	De root van de AST is het startpunt van de stack
+	 */
 	@Override
 	public void enterStylesheet(ICSSParser.StylesheetContext ctx){
 	currentContainer.push(ast.root);
 	}
 
+	/*
+	Alles is verwerkt de laatste node op de stack is de volledige stylesheet
+	 */
 	@Override
 	public void exitStylesheet(ICSSParser.StylesheetContext ctx){
 		ast.setRoot((Stylesheet) currentContainer.pop());

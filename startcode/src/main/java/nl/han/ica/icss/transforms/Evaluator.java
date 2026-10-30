@@ -7,10 +7,7 @@ import nl.han.ica.icss.ast.literals.BoolLiteral;
 import nl.han.ica.icss.ast.literals.PercentageLiteral;
 import nl.han.ica.icss.ast.literals.PixelLiteral;
 import nl.han.ica.icss.ast.literals.ScalarLiteral;
-import nl.han.ica.icss.ast.operations.AddOperation;
-import nl.han.ica.icss.ast.operations.MultiplyOperation;
-import nl.han.ica.icss.ast.operations.SubtractOperation;
-import org.checkerframework.checker.units.qual.A;
+import nl.han.ica.icss.ast.operations.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,18 +32,19 @@ public class Evaluator implements Transform {
     }
 
     private void openScope() {
-      variableValues.addFirst(new HashMap<>());
+        variableValues.addFirst(new HashMap<>());
     }
 
     private void closeScope() {
         variableValues.removeFirst();
     }
 
-    private void declareVariable(String name, Literal val){
+    private void declareVariable(String name, Literal val) {
         variableValues.getFirst().put(name, val);
     }
-    private Literal lookupVariable(String name){
-        for (int i = 0; i < variableValues.getSize() ; i++) {
+
+    private Literal lookupVariable(String name) {
+        for (int i = 0; i < variableValues.getSize(); i++) {
             Literal value = variableValues.get(i).get(name);
             if (value != null) {
                 return value;
@@ -57,86 +55,153 @@ public class Evaluator implements Transform {
 
     private ArrayList<ASTNode> transformBody(ArrayList<ASTNode> body) {
         ArrayList<ASTNode> result = new ArrayList<>();
-        for (ASTNode node: body){
-             if (node instanceof Stylerule){
-                 transformStylerule((Stylerule) node);
-                 result.add(node);
-             } else if (node instanceof  VariableAssignment) {
-                 VariableAssignment assignment = (VariableAssignment) node;
-                 declareVariable(assignment.name.name, evaluate(assignment.expression));
-             } else if (node instanceof Declaration) {
-                 Declaration declaration = (Declaration) node;
-                 declaration.expression = evaluate(declaration.expression);
-                 result.add(declaration);
-             } else if (node instanceof IfClause) {
-                 result.addAll(transformIfClause((IfClause) node));
-             } else {
-                 result.add(node);
-             }
+        for (ASTNode node : body) {
+            if (node instanceof Stylerule) {
+                transformStylerule((Stylerule) node);
+                result.add(node);
+            } else if (node instanceof VariableAssignment) {
+                VariableAssignment assignment = (VariableAssignment) node;
+                declareVariable(assignment.name.name, evaluate(assignment.expression));
+            } else if (node instanceof Declaration) {
+                Declaration declaration = (Declaration) node;
+                declaration.expression = evaluate(declaration.expression);
+                result.add(declaration);
+            } else if (node instanceof IfClause) {
+                result.addAll(transformIfClause((IfClause) node));
+            } else {
+                result.add(node);
+            }
         }
         return result;
     }
 
 
-    private void transformStylerule(Stylerule stylerule){
+    private void transformStylerule(Stylerule stylerule) {
         openScope();
         stylerule.body = transformBody(stylerule.body);
         closeScope();
     }
 
     private ArrayList<ASTNode> transformIfClause(IfClause ifClause) {
-        BoolLiteral condition = (BoolLiteral) evaluate(ifClause.conditionalExpression);
+        Literal result = evaluate(ifClause.conditionalExpression);
+
+        if (!(result instanceof BoolLiteral)) {
+            throw new IllegalArgumentException(
+                    "De if-voorwaarde moet een geldige boolean opleveren."
+            );
+        }
+
+        BoolLiteral condition = (BoolLiteral) result;
 
         ArrayList<ASTNode> chosenBody = null;
-        if (condition.value){
+
+        if (condition.value) {
             chosenBody = ifClause.body;
-        } else if (ifClause.elseClause != null)  {
+        } else if (ifClause.elseClause != null) {
             chosenBody = ifClause.elseClause.body;
         }
 
-        if(chosenBody == null){
+        if (chosenBody == null) {
             return new ArrayList<>();
         }
 
         openScope();
         ArrayList<ASTNode> transformed = transformBody(chosenBody);
         closeScope();
+
         return transformed;
     }
 
-    private Literal evaluate(Expression expression){
-        if(expression instanceof Literal){
+    private Literal evaluate(Expression expression) {
+        if (expression instanceof Literal) {
             return (Literal) expression;
         } else if (expression instanceof VariableReference) {
             return lookupVariable(((VariableReference) expression).name);
+        } else if (expression instanceof NotOperation) {
+            NotOperation notOperation = (NotOperation) expression;
+            Literal operand = evaluate(notOperation.operand);
+
+            if (!(operand instanceof BoolLiteral)) {
+                throw new IllegalArgumentException(
+                        "Operator ! vereist een boolean operand."
+                );
+            }
+
+            return new BoolLiteral(!((BoolLiteral) operand).value);
         } else if (expression instanceof Operation) {
             return evaluateOperation((Operation) expression);
         }
+
         return null;
     }
 
-    private Literal evaluateOperation(Operation operation){
+    private Literal evaluateOperation(Operation operation) {
+
         Literal left = evaluate(operation.lhs);
         Literal right = evaluate(operation.rhs);
 
-        if (operation instanceof MultiplyOperation){
-            if (left instanceof ScalarLiteral){
+        if (left == null  || right == null){
+            throw new IllegalArgumentException("Operator " + operation.getNodeLabel().toLowerCase()  + " heeft een operand zonder waarde");
+        }
+
+        if (operation instanceof AndOperation) {
+            return new BoolLiteral(
+                    ((BoolLiteral) left).value &&
+                            ((BoolLiteral) right).value
+            );
+        }
+
+        if (operation instanceof OrOperation) {
+            return new BoolLiteral(
+                    ((BoolLiteral) left).value ||
+                            ((BoolLiteral) right).value
+            );
+        }
+
+        if (operation instanceof EqualOperation) {
+            return new BoolLiteral(left.equals(right));
+        }
+
+        if (operation instanceof NotEqualOperation) {
+            return new BoolLiteral(!left.equals(right));
+        }
+
+        if (operation instanceof LessThanOperation) {
+            return new BoolLiteral(valueOf(left) < valueOf(right));
+        }
+
+        if (operation instanceof GreaterThanOperation) {
+            return new BoolLiteral(valueOf(left) > valueOf(right));
+        }
+
+        if (operation instanceof LessOrEqualOperation) {
+            return new BoolLiteral(valueOf(left) <= valueOf(right));
+        }
+
+        if (operation instanceof GreaterOrEqualOperation) {
+            return new BoolLiteral(valueOf(left) >= valueOf(right));
+        }
+
+        if (operation instanceof MultiplyOperation) {
+            if (left instanceof ScalarLiteral) {
                 return createLiteral(right, valueOf(left) * valueOf(right));
             }
             return createLiteral(left, valueOf(left) * valueOf(right));
         }
-        if(operation instanceof AddOperation){
+
+        if (operation instanceof AddOperation) {
             return createLiteral(left, valueOf(left) + valueOf(right));
         }
 
-        if (operation instanceof SubtractOperation){
+        if (operation instanceof SubtractOperation) {
             return createLiteral(left, valueOf(left) - valueOf(right));
         }
+
         return null;
     }
 
-    private int valueOf(Literal literal){
-        if (literal instanceof PixelLiteral){
+    private int valueOf(Literal literal) {
+        if (literal instanceof PixelLiteral) {
             return ((PixelLiteral) literal).value;
         } else if (literal instanceof PercentageLiteral) {
             return ((PercentageLiteral) literal).value;
@@ -144,8 +209,8 @@ public class Evaluator implements Transform {
         return ((ScalarLiteral) literal).value;
     }
 
-    private Literal createLiteral(Literal unitSource, int value){
-        if (unitSource instanceof PixelLiteral){
+    private Literal createLiteral(Literal unitSource, int value) {
+        if (unitSource instanceof PixelLiteral) {
             return new PixelLiteral(value);
         } else if (unitSource instanceof PercentageLiteral) {
             return new PercentageLiteral(value);
