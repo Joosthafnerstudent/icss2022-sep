@@ -15,6 +15,9 @@ public class Generator {
 
 	private static final String INDENT = "  ";
 
+	/*
+	 Zet de AST om naar een CSS-string. Tussen twee stylerules komt een lege regel
+	 */
 	public String generate(AST ast) {
 		StringBuilder css = new StringBuilder();
 		ArrayList<ASTNode> body = ast.root.body;
@@ -32,6 +35,10 @@ public class Generator {
 		return css.toString();
 	}
 
+	/*
+		Genereerd één stylerule: De selectors gescheiden door een comma, gevolgt door de declaraties tussen de accolades.
+		Alleen declaraties worden geschreven, andere nodes hebben na de evaluatie geen betekenis meer voor de CSS-uitvoer.
+	 */
 	private void generateStylerule(Stylerule rule, StringBuilder css, int level) {
 		String selectors = rule.selectors.stream()
 				.map(Selector::toString)
@@ -46,6 +53,9 @@ public class Generator {
 		indent(css, level).append("}\n");
 	}
 
+	/*
+		Genereert één declaratie in de vorm van "property": waarde
+	 */
 	private void generateDeclaration(Declaration declaration, StringBuilder css, int level) {
 		indent(css, level)
 				.append(declaration.property.name)
@@ -54,6 +64,10 @@ public class Generator {
 				.append(";\n");
 	}
 
+	/*
+		Zet een literal om naar een CSS-notatie, inclusief eenheid (px of %).
+		Geeft een lege string terug voor een expressie die geen literal is
+	 */
 	private String generateExpression(Expression expression) {
 		if (expression instanceof PixelLiteral) {
 			return ((PixelLiteral) expression).value + "px";
@@ -69,6 +83,9 @@ public class Generator {
 		return "";
 	}
 
+	/*
+	Voegt de inspringing voor het opgegeven niveau toe en geeft de builder terug.
+	 */
 	private StringBuilder indent(StringBuilder sb, int level) {
 		for (int i = 0; i < level; i++) {
 			sb.append(INDENT);
