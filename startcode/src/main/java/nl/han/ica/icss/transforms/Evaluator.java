@@ -14,6 +14,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 
+
+/*
+Deze code evalueert de ast na de transfromatie. De ast bevat geen variabelen meer maar alleen nog de stylerules
+ */
 public class Evaluator implements Transform {
 
     private IHANLinkedList<HashMap<String, Literal>> variableValues;
@@ -23,6 +27,9 @@ public class Evaluator implements Transform {
 
     }
 
+    /*
+    Voert de evaluatie uit op de gehele AST. De globale scope blijft open tot de hele stylesheet is verwerkt
+     */
     @Override
     public void apply(AST ast) {
         variableValues = new HANLinkedList<>();
@@ -31,10 +38,19 @@ public class Evaluator implements Transform {
         closeScope();
     }
 
+
+    // Scope-beheer
+
+    /*
+    Opent een nieuwe  scope bij bijvoorbeeld een stylerule
+     */
     private void openScope() {
         variableValues.addFirst(new HashMap<>());
     }
 
+    /*
+    Sluit de binnenste scope, bijvoorbeeld bij een stylerule
+     */
     private void closeScope() {
         variableValues.removeFirst();
     }
@@ -43,6 +59,11 @@ public class Evaluator implements Transform {
         variableValues.getFirst().put(name, val);
     }
 
+    /*
+      Zoekt een variable, zodat een lokale variabele een globale met dezelfde naam overschaduwt
+
+      @return de waarde van de variabele, of null als deze in geen enkele scope bestaad
+     */
     private Literal lookupVariable(String name) {
         for (int i = 0; i < variableValues.getSize(); i++) {
             Literal value = variableValues.get(i).get(name);
@@ -53,6 +74,12 @@ public class Evaluator implements Transform {
         return null;
     }
 
+
+    /*
+    Transformeerd de body van een stylesheet en geeft de nieuwe body terug:
+     - Stylerule: wordt recursief getransformeerd en behouden
+     - VariableAssignment: Wordt geevalueerd en opgeslagen in de scope, verdwijnt uit de body
+     */
     private ArrayList<ASTNode> transformBody(ArrayList<ASTNode> body) {
         ArrayList<ASTNode> result = new ArrayList<>();
         for (ASTNode node : body) {
@@ -75,13 +102,19 @@ public class Evaluator implements Transform {
         return result;
     }
 
-
+    /*
+     Een stylerule krijgt een eigen scope waardoor de variabele binnen lokaal blijven
+     */
     private void transformStylerule(Stylerule stylerule) {
         openScope();
         stylerule.body = transformBody(stylerule.body);
         closeScope();
     }
 
+    /*
+       Evalueerd de voorwaarde van een if-clause, die de getransformeerde body terug geeft van de gekozen tak.
+       Is de voorwaarde niet waar en er is geen else dan wordt het resultaat een lege lijst.
+     */
     private ArrayList<ASTNode> transformIfClause(IfClause ifClause) {
         Literal result = evaluate(ifClause.conditionalExpression);
 
@@ -112,6 +145,9 @@ public class Evaluator implements Transform {
         return transformed;
     }
 
+     /*
+        Rekent een expressie uit tot een literal
+     */
     private Literal evaluate(Expression expression) {
         if (expression instanceof Literal) {
             return (Literal) expression;
@@ -135,6 +171,10 @@ public class Evaluator implements Transform {
         return null;
     }
 
+    /*
+        Rekent een binare operatie uit. Eerst worden beide operanden gevalueerd zodat geneste operaties en variabelen zijn opgelost
+        en daarna wordt er op basis van het type operatie het resultaat bepaalt.
+     */
     private Literal evaluateOperation(Operation operation) {
 
         Literal left = evaluate(operation.lhs);
@@ -200,6 +240,11 @@ public class Evaluator implements Transform {
         return null;
     }
 
+    // Helper functies voor literals
+
+    /*
+    Haalt de numerike waarde uit een pixel- , percentage- of scalar-literal
+     */
     private int valueOf(Literal literal) {
         if (literal instanceof PixelLiteral) {
             return ((PixelLiteral) literal).value;
@@ -209,6 +254,9 @@ public class Evaluator implements Transform {
         return ((ScalarLiteral) literal).value;
     }
 
+    /*
+    Maakt een nieuwe literal met dezelfde eenheid als unitSource en de gegeven waarde.
+     */
     private Literal createLiteral(Literal unitSource, int value) {
         if (unitSource instanceof PixelLiteral) {
             return new PixelLiteral(value);
